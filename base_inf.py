@@ -12,4 +12,5 @@ pipeline = transformers.pipeline(
 prompt = "Explain the theory of relativity in simple terms."
 output = pipeline(prompt, max_length=100, num_return_sequences=1)
 
-print(output[0]["generated_text"])
+print(output[0]["generated_text"],"committest")
+#testinf commit
