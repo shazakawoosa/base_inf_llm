@@ -9,3 +9,7 @@ pipeline = transformers.pipeline(
   model_kwargs={"torch_dtype": torch.bfloat16},
   device="cuda",
 )
+prompt = "Explain the theory of relativity in simple terms."
+output = pipeline(prompt, max_length=100, num_return_sequences=1)
+
+print(output[0]["generated_text"])
