@@ -113,9 +113,9 @@ comparison_prompt = """
 You are asked to compare two explanations for a legal question. 
 Select the better explanation based on clarity, depth, and accuracy. 
 First, choose either Model A or Model B as the better explanation. 
-Then, explain why you selected the chosen explanation over the other one. 
-Provide a score from 1 to 10 for each explanation and explain which explanation is better and why.
 """
+# Then, explain why you selected the chosen explanation over the other one. 
+# Provide a score from 1 to 10 for each explanation and explain which explanation is better and why.
 
 # Run the pipeline on all iterations in the JSON file
 run_pipeline(json_file_path, comparison_prompt)
