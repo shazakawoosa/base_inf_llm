@@ -4,7 +4,7 @@ import os
 import json
 
 # Set the Hugging Face access token if required
-os.environ["HF_TOKEN"] = "your_huggingface_token"
+#os.environ["HF_TOKEN"] = "your_huggingface_token"
 
 # The model ID for LLaMA
 model_id = "meta-llama/Llama-3.1-8B"
@@ -20,16 +20,19 @@ pipeline = transformers.pipeline(
 def compare_explanations(comparison_prompt, exp1, exp2):
     """Generate a comparison of explanations (Model A vs Model B), first selecting the better one, then explaining why."""
     # Construct the full comparison prompt with explanations (Model A and Model B)
-    full_prompt = f"""{comparison_prompt}
-Model A: {exp1}
-Model B: {exp2}
-"""
+#     full_prompt = f"""{comparison_prompt}
+# Exp A: {exp1}
+# Exp B: {exp2}
+# """
+    full_prompt = "hello"
 
     # Generate the comparison result using the pipeline
-    output = pipeline(full_prompt, max_length=500, num_return_sequences=1)
+    output = pipeline(full_prompt, max_new_tokens=500, num_return_sequences=1)
 
-    # Extract and return the generated text (which should include the choice and reasoning)
-    return output[0]['generated_text']
+    # Extract and return only the generated continuation
+    generated_text = output[0]['generated_text']
+    continuation = generated_text[len(full_prompt):].strip()  # Remove the prompt from the result
+    return continuation
 
 def load_json(file_path):
     """Loads the JSON file and returns the data."""
@@ -42,8 +45,8 @@ def extract_explanations(data):
     count = 0
     # Loop through each item in the data (iteration)
     for item in data:
-        # if count >= 5:
-        #     break
+        if count >= 5:
+            break
         question_prompt = item.get("prompt", "")
         exp1 = item.get("response", {}).get("explanation", "")
         exp2 = item.get("ground_truth", {}).get("explanation", "")
@@ -83,9 +86,9 @@ def run_pipeline(json_file_path, comparison_prompt):
         comparison_result = compare_explanations(comparison_prompt, exp1, exp2)
 
         # Check if the result mentions Model A or Model B as the selected explanation
-        if "Model A" in comparison_result:
+        if "Exp A" in comparison_result:
             model_a_count += 1
-        elif "Model B" in comparison_result:
+        elif "Exp B" in comparison_result:
             model_b_count += 1
 
         # Prepare the result to save in JSON format
@@ -109,10 +112,7 @@ def run_pipeline(json_file_path, comparison_prompt):
 json_file_path = "test_set_1.json"
 
 # Comparison prompt for selecting the better explanation (Model A vs Model B)
-comparison_prompt = """
-You are asked to compare two explanations for a legal question. 
-Select the better explanation based on clarity, depth, and accuracy. 
-First, choose either Model A or Model B as the better explanation. 
+comparison_prompt = """Is 4 bigger than 5?
 """
 # Then, explain why you selected the chosen explanation over the other one. 
 # Provide a score from 1 to 10 for each explanation and explain which explanation is better and why.
