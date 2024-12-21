@@ -4,7 +4,7 @@ import os
 import json
 
 # Set the Hugging Face access token if required
-#os.environ["HF_TOKEN"] = "your_huggingface_token"
+# os.environ["HF_TOKEN"] = "your_huggingface_token"
 
 # The model ID for LLaMA
 model_id = "meta-llama/Llama-3.1-8B"
@@ -13,26 +13,47 @@ model_id = "meta-llama/Llama-3.1-8B"
 pipeline = transformers.pipeline(
     "text-generation", 
     model=model_id, 
-    model_kwargs={"torch_dtype": torch.bfloat16}, 
+    model_kwargs={"torch_dtype": torch.float16,
+                  "pad_token_id": 128001  },# Use the eos_token_id for padding}, 
     device_map="auto",  # Automatically selects the device (GPU if available)
+    num_return_sequences=1,
+    temperature=0.7,  # Adjust for creativity
+    top_k=5,         # Controls randomness by limiting token sampling
+    do_sample=True    # Ensure random sampling instead of greedy decoding
 )
 
 def compare_explanations(comparison_prompt, exp1, exp2):
-    """Generate a comparison of explanations (Model A vs Model B), first selecting the better one, then explaining why."""
+    """Generate a comparison of explanations (Model A vs Model B) in structured format."""
     # Construct the full comparison prompt with explanations (Model A and Model B)
-#     full_prompt = f"""{comparison_prompt}
-# Exp A: {exp1}
-# Exp B: {exp2}
-# """
-    full_prompt = "hello"
-
+    full_prompt = f"""{comparison_prompt}
+Exp_A: {exp1}
+Exp_B: {exp2}
+"""
     # Generate the comparison result using the pipeline
     output = pipeline(full_prompt, max_new_tokens=500, num_return_sequences=1)
 
     # Extract and return only the generated continuation
     generated_text = output[0]['generated_text']
     continuation = generated_text[len(full_prompt):].strip()  # Remove the prompt from the result
-    return continuation
+
+    # Parse the output for structured data (Selection and Reasoning)
+    structured_output = {
+        "Selection": None,
+        "Reasoning": None
+    }
+
+    # Split the output into "Selection" and "Reasoning" sections
+    if "Selection:" in continuation and "Reasoning:" in continuation:
+        parts = continuation.split("Reasoning:", 1)
+        structured_output["Selection"] = parts[0].replace("Selection:", "").strip()
+        structured_output["Reasoning"] = parts[1].strip()
+
+    if "Selection:" not in continuation or "Reasoning:" not in continuation:
+        structured_output["selection"] = "Unable to determine"
+        structured_output["reasoning"] = continuation  # Include raw output for debugging
+
+
+    return structured_output
 
 def load_json(file_path):
     """Loads the JSON file and returns the data."""
@@ -42,11 +63,8 @@ def load_json(file_path):
 def extract_explanations(data):
     """Extracts the response and ground truth explanations without labeling them as such."""
     extracted_explanations = []
-    count = 0
     # Loop through each item in the data (iteration)
     for item in data:
-        if count >= 5:
-            break
         question_prompt = item.get("prompt", "")
         exp1 = item.get("response", {}).get("explanation", "")
         exp2 = item.get("ground_truth", {}).get("explanation", "")
@@ -57,11 +75,10 @@ def extract_explanations(data):
             continue
 
         extracted_explanations.append({
-            "question_prompt": question_prompt,
-            "exp1": exp1,
-            "exp2": exp2
+            "Question_prompt": question_prompt,
+            "Exp_A": exp1,
+            "Exp_B": exp2
         })
-        count += 1
     
     return extracted_explanations
 
@@ -78,25 +95,38 @@ def run_pipeline(json_file_path, comparison_prompt):
 
     # Loop through each extracted explanation pair and compare them
     for item in extracted_explanations:
-        question_prompt = item["question_prompt"]
-        exp1 = item["exp1"]
-        exp2 = item["exp2"]
+        question_prompt = item["Question_prompt"]
+        exp1 = item["Exp_A"]
+        exp2 = item["Exp_B"]
 
         # Pass the extracted explanations to the comparison function
         comparison_result = compare_explanations(comparison_prompt, exp1, exp2)
 
-        # Check if the result mentions Model A or Model B as the selected explanation
-        if "Exp A" in comparison_result:
-            model_a_count += 1
-        elif "Exp B" in comparison_result:
-            model_b_count += 1
+        # Count selections
+        selection = comparison_result.get("Selection", None)  # Use None as the default value
+
+        if selection is None:
+            # Handle the case where the selection is None
+            print(f"Warning: Unable to determine selection for prompt:\n")
+            #print(f"Model output: {comparison_result}")
+        else:
+            if "Exp_A" in selection:
+                model_a_count += 1
+            elif "Exp_B" in selection:
+                model_b_count += 1
+            else:
+                # Handle unexpected cases where the selection is non-empty but unrecognized
+                print(f"Warning: Unexpected selection format for prompt:\n")
+               # print(f"Model output: {comparison_result}")
+
 
         # Prepare the result to save in JSON format
         result = {
-            "question_prompt": question_prompt,
-            "exp1": exp1,
-            "exp2": exp2,
-            "comparison_result": comparison_result,
+            "Question_prompt": question_prompt,
+            "Exp_A": exp1,
+            "Exp_B": exp2,
+            "Selection": comparison_result.get("Selection"),
+            "Reasoning": comparison_result.get("Reasoning")
         }
         results.append(result)
 
@@ -112,10 +142,22 @@ def run_pipeline(json_file_path, comparison_prompt):
 json_file_path = "test_set_1.json"
 
 # Comparison prompt for selecting the better explanation (Model A vs Model B)
-comparison_prompt = """Is 4 bigger than 5?
+comparison_prompt = """You are given two explanations of the same question or concept. For each explanation, provide a detailed evaluation based on the following criteria:
+1. **Clarity**: How clearly is the explanation written? Is it easy to understand?
+2. **Accuracy**: Does the explanation accurately convey the correct information? Are there any factual errors or misleading statements?
+3. **Depth**: How detailed is the explanation? Does it cover all necessary aspects of the topic, or is it overly simplistic?
+4. **Relevance**: Is the explanation focused and relevant to the question or topic? Does it avoid unnecessary information?
+5. **Conciseness**: Is the explanation concise without omitting essential details, or is it too wordy?
+
+For each explanation, give a score from 1 to 10 on each criterion and explain your reasoning behind each score.
+
+Finally, select the better explanation (Exp A or Exp B) and provide your reasoning in the following format:
+Selection: [Exp_A/Exp_B]
+Reasoning: [Explain why you selected this explanation, including strengths and weaknesses of both explanations based on the criteria.]
+
+Exp A: [First explanation]
+Exp B: [Second explanation]
 """
-# Then, explain why you selected the chosen explanation over the other one. 
-# Provide a score from 1 to 10 for each explanation and explain which explanation is better and why.
 
 # Run the pipeline on all iterations in the JSON file
 run_pipeline(json_file_path, comparison_prompt)

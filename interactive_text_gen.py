@@ -8,7 +8,7 @@ def initialize_pipeline(model_id):
         pipeline = transformers.pipeline(
             "text-generation",
             model=model_id,
-            model_kwargs={"torch_dtype": torch.bfloat16},
+            model_kwargs={"torch_dtype": torch.float16},
             device_map="auto"  # Automatically selects GPU if available
         )
         print("Pipeline initialized successfully.")
@@ -29,8 +29,15 @@ def interactive_generation(pipeline):
                 print("Exiting interactive text generation. Goodbye!")
                 break
 
-            # Generate text
-            output = pipeline(user_input, max_new_tokens=200, num_return_sequences=1)
+            # Generate text with temperature and top_k sampling for diversity
+            output = pipeline(
+                user_input,
+                max_new_tokens=200, 
+                num_return_sequences=1,
+                temperature=0.7,  # Adjust for creativity
+                top_k=50,         # Controls randomness by limiting token sampling
+                do_sample=True    # Ensure random sampling instead of greedy decoding
+            )
             generated_text = output[0]["generated_text"]
             print(f"\nGenerated Text:\n{generated_text}\n")
         except Exception as e:
@@ -38,7 +45,7 @@ def interactive_generation(pipeline):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interactive Text Generation")
-    parser.add_argument("--model_id", type=str, default="meta-llama/Llama-3.1-8B",
+    parser.add_argument("--model_id", type=str, default="hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4",
                         help="The Hugging Face model ID to use for text generation.")
     args = parser.parse_args()
 
