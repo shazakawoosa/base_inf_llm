@@ -3,10 +3,45 @@ import transformers
 import os
 import json
 import re
+import torch
+
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+# Define the quantization configuration
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import torch
+
+# Define the quantization configuration
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",         # Set the quantization type
+    use_nested_quant=False,           # Disable nested quantization
+    bnb_4bit_compute_dtype=torch.float16  # Use float16 for computation
+)
+
+# Load the model with the new argument
+#model_name = "meta-llama/Llama-3.1-8B"
+model_name = "meta-llama/Llama-3.1-8B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    quantization_config=quantization_config
+)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
 
 # Set up the text generation pipeline
+model_id = "meta-llama/Llama-3.1-8B-Instruct"
 #model_id = "meta-llama/Llama-3.1-8B"
-model_id = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+
+print(model_id)
+
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.float16,  # Use FP16 for further optimizations
+    device_map="auto",          # Automatically place layers on GPU(s)
+    #load_in_4bit=True           # Use 8-bit quantization (set to `load_in_4bit=True` for 4-bit)
+)
 
 pipeline = transformers.pipeline(
     "text-generation",
@@ -158,10 +193,10 @@ def run_pipeline(json_file_path):
         count += 1
 
     # Save the results
-    with open("comparison_results_str.json", "w") as f:
+    with open("comparison_results_str_quan_inst_2.json", "w") as f:
         json.dump(results, f, indent=4)
 
-    print(f"Results saved to 'comparison_result_str.json'")
+    print(f"Results saved to 'comparison_result_str_quan_inst_2.json'")
     print(f"Assistant A selected {model_a_count} times.")
     print(f"Assistant B selected {model_b_count} times.")
     print(f"Ties: {tie_count}")
