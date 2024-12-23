@@ -5,14 +5,15 @@ import json
 import re
 
 # Set up the text generation pipeline
-model_id = "meta-llama/Llama-3.1-8B"
+#model_id = "meta-llama/Llama-3.1-8B"
+model_id = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
     model_kwargs={
         "torch_dtype": torch.float16,
-        "pad_token_id": 128001,
+       
     },
     device_map="auto",
     num_return_sequences=1,
@@ -78,7 +79,7 @@ def extract_responses(data):
         question_match = re.search(r"</SYS>>\nQuestion:\n(.*?)\nAnswer Choices:", full_prompt, re.DOTALL)
         
         if not question_match:
-            print(f"Skipping iteration: Unable to extract question from prompt:\n{full_prompt}")
+            print(f"Skipping iteration: Unable to extract question from prompt:\n")
             continue
 
         question_prompt = question_match.group(1).strip()  # Extracted question
@@ -89,13 +90,13 @@ def extract_responses(data):
 
         # Ensure explanations are present
         if not exp1 or not exp2:
-            print(f"Skipping iteration: Missing explanations for extracted question:\n{question_prompt}")
+            print(f"Skipping iteration: Missing explanations for extracted question:\n")
             continue
 
         # Extract the chosen label from the response
         chosen_label = item.get("response", {}).get("chosen_option_label", None)
         if chosen_label is None:
-            print(f"Warning: Missing chosen label for question:\n{question_prompt}")
+            print(f"Warning: Missing chosen label for question:\n")
             continue
 
         # Append the extracted data to the results
@@ -131,7 +132,7 @@ def run_pipeline(json_file_path):
 
         # Generate comparison result
         comparison_result = compare_responses(question_prompt, answer_a, answer_b)
-        print(comparison_result)
+        #print(comparison_result)
         # Parse the selection from the result
         selection = ""
         if "[A]" in comparison_result:
