@@ -172,6 +172,16 @@ def run_pipeline(json_file_path):
         # Check if the chosen_label is not equal to the correct_answer
         if chosen_label != correct_answer:
             incorrect_count += 1  # Increment the incorrect count
+             # Append the result
+        results.append({
+            "question": question_prompt,
+            "answer_a": answer_a,
+            "answer_b": answer_b,
+            "comparison_result": comparison_result,
+            "selection": selection,
+            "chosen_label": chosen_label,
+            "correct_answer": correct_answer
+        })
     # End the timer
     end_time = time.time()
 
