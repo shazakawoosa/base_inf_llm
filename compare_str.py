@@ -167,7 +167,7 @@ def run_pipeline(json_file_path):
             selection = "C"
             tie_count += 1
         else:
-            print(f"Warning: Unable to determine selection for question:\n{question_prompt}")
+            print(f"Warning: Unable to determine selection for question:\n")
 
         # Check if the chosen_label is not equal to the correct_answer
         if chosen_label != correct_answer:
